@@ -134,7 +134,7 @@ jobs:
 
   signed-apk:
     name: Signed APK and optional tag Release
-    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.signed)
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.signed)
     needs: [build, device-tests]
     runs-on: ubuntu-24.04
     timeout-minutes: 30

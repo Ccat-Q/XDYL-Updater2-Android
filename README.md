@@ -12,7 +12,7 @@
 
 1. 静态检查、离线单元测试、Android Lint；生成 debug APK 与 instrumentation APK。
 2. Android API 26、36 模拟器测试导航、登录契约和写操作取消；同密钥升级检查数据保留；保存浅色/深色大字体截图和日志。
-3. 手动勾选 `signed` 或推送 `v*` 标签时，前述检查通过后构建并验证正式签名 APK。仅标签构建发布 GitHub Release。
+3. main 推送、手动勾选 `signed` 或推送 `v*` 标签时，前述检查通过后构建并验证正式签名 APK。仅标签构建发布 GitHub Release。
 
 下载 Actions 的 `StarWave-debug`、`Android-build-reports` 和 `Android-device-api*` 查看结果；正式 APK 在 `StarWave-signed`。debug 包使用 `.debug` 后缀，可与正式应用并存。
 
