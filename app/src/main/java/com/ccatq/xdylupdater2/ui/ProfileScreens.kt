@@ -17,6 +17,7 @@ import com.ccatq.xdylupdater2.core.*
 
 @Composable fun ProfileScreen(model: AppViewModel, nav: NavHostController) {
     val profile by model.profile.collectAsStateWithLifecycle()
+    val tokens by model.tokens.collectAsStateWithLifecycle()
     val settings by model.settings.collectAsStateWithLifecycle()
     val busy by model.busy.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -32,7 +33,7 @@ import com.ccatq.xdylupdater2.core.*
     Page {
         Section(profile?.nickname ?: "用户") {
             profile?.avatar?.let { AsyncImage(it, "我的头像", modifier = Modifier.size(64.dp)) }
-            Text("@${profile?.username ?: model.tokens.value?.username.orEmpty()}")
+            Text("@${profile?.username ?: tokens?.username.orEmpty()}")
             Text("喵币：${profile?.balance ?: "0"}")
             OutlinedButton({ model.action { model.refreshProfile(); model.refreshUnread() } }, enabled = !busy) { Text("刷新资料") }
         }
