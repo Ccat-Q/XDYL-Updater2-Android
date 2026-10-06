@@ -47,4 +47,8 @@
 - [领域术语](CONTEXT.md)
 - [架构决策](docs/adr/0001-native-android.md)
 
-iOS 源码、Xcode 配置、旧 IPA 工作流、旧产物与 EXE 已从当前工作树删除，原始内容保留在 Git 历史。本轮仅完成源码、工作流与静态验证，**尚未运行 GitHub Actions，尚无已验证 APK**。推送、上传 Secrets、运行 Actions 和发布 Release 需按本轮已确认范围另行授权。
+iOS 源码、Xcode 配置、旧 IPA 工作流、旧产物与 EXE 已从当前工作树删除，原始内容保留在 Git 历史。
+
+2026-10-06 已推送并完成 [GitHub Actions 验证](https://github.com/Ccat-Q/XDYL-Updater2-Android/actions/runs/37497351839)，被验证的代码提交为 `314cf28`：28 个单元测试、Lint、API 26/36 各 4 项设备测试、同密钥升级数据保留及正式 APK 签名全部通过；正式 APK 已在 Android 8.0 模拟器安装并启动。SDK、Gradle 与模拟器镜像缓存已实际命中。
+
+签名 Secrets 已配置。进入上述 Actions 的 `StarWave-signed` 下载正式安装包 `StarWave-android.apk` 及 SHA-256；APK 可直接安装到 Android 8.0 及以上设备，无需重签。真实账号与业务写操作仍需按验证文档进行授权验收。

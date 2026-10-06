@@ -1,6 +1,6 @@
 # Android 验证范围
 
-本轮只允许 GitHub Actions 编译。本机只进行 Python 源码语法、XML/TOML/YAML 配置解析、文件结构与 Git 空白检查，不运行 Kotlin 编译、Gradle、Android Lint、单元测试或模拟器。
+本轮只允许 GitHub Actions 编译。本机只进行 Python 源码语法、XML/TOML/YAML 配置解析、文件结构、Git 空白检查与产物 SHA-256 核对，不运行 Kotlin 编译、Gradle、Android Lint、单元测试或模拟器。
 
 ## Actions 自动检查
 
@@ -19,6 +19,21 @@ QQ 浏览器登录与返回、真实接口字段兼容性、头像与图片上�
 
 ## 交付时状态
 
-代码与 Actions 工作流已编写；本轮尚未推送或运行 Actions，所有编译、Lint、JVM 与模拟器测试结果均待确认。签名密钥仅保存本地且已被 Git 忽略，不代表已配置 GitHub Secrets或已生成 APK。
+2026-10-06 [Actions run 37497351839](https://github.com/Ccat-Q/XDYL-Updater2-Android/actions/runs/37497351839) 全部成功，验证代码提交 `314cf28`。
+
+| 检查 | 实际结果 |
+| --- | --- |
+| JVM 测试 | 28 项通过：模型 15、网络 8、文件校验 5 |
+| Android Lint / APK 编译 | 通过 |
+| API 26 设备测试 | 4 项通过 |
+| API 36 设备测试 | 4 项通过 |
+| 同密钥 versionCode 1 → 2 升级 | 两种系统均保留私有数据 |
+| 正式 APK 签名 | apksigner 验证通过，APK v2 签名 |
+| 正式 APK 安装启动 | Android API 26 模拟器通过，进程和前台 Activity 正常 |
+| 缓存 | SDK、Gradle、模拟器镜像实际命中 |
+
+证书 SHA-256：`82d7661f1678dcec64f2c63c574888b1a7a36db8e6b57637e3c0cfcdd98a91d3`。正式 APK 版本 2.1.9 / versionCode 1；测试用升级探针仅用于 debug 包。
+
+长期签名 Secrets 已配置，密钥本地副本受 Git 忽略保护。编译、JVM/Lint、模拟器和签名验证全部在 GitHub runner 完成；本机未执行 Android 编译。真实业务写操作尚未联调，不能由离线测试及安装检查推断已通过。
 
 资源下载沿用已确认的系统 DownloadManager 方案：应用检查初始 URL，系统处理其重定向。账号请求和开发者请求不使用该下载客户端，下载任务不携带 Bearer 令牌。若未来需要逐跳强制资源网络边界，需改为应用控制的下载引擎并同步调整下载文档。
