@@ -167,6 +167,31 @@ jobs:
       - name: Delete runner signing material
         if: always()
         run: rm -f "$RUNNER_TEMP/starwave-release.keystore"
+      - name: Enable KVM for signed APK installation
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ runner.temp }}/android-sdk/emulator
+            ${{ runner.temp }}/android-sdk/system-images/android-26
+          key: emulator-${{ runner.os }}-api26-google-apis-x86_64-v1
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 26
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect -camera-back none -camera-front none
+          script: python3 tools/check_release_install.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Android-release-installation
+          path: artifacts/release-device/
+          retention-days: 14
       - uses: actions/upload-artifact@v4
         with:
           name: StarWave-signed

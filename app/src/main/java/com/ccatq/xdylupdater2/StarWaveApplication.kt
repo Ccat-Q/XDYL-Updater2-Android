@@ -38,7 +38,7 @@ class AppGraph(context: Context, apiOverride: RemoteApi? = null) {
 class StarWaveApplication : Application(), DefaultLifecycleObserver {
     val graph by lazy { AppGraph(this) }
     override fun onCreate() {
-        super.onCreate()
+        super<Application>.onCreate()
         graph
         ProcessLifecycleOwner.get().lifecycle.addObserver(this)
     }
