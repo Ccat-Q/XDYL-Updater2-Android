@@ -145,6 +145,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - uses: ./.github/actions/android-tools
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
       - name: Restore signing identity privately
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}

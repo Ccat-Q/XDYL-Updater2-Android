@@ -9,10 +9,14 @@ out = Path('artifacts/release-device')
 out.mkdir(parents=True, exist_ok=True)
 
 def adb(*args):
-    return subprocess.run(['adb', *map(str, args)], check=True, capture_output=True).stdout
+    result = subprocess.run(['adb', *map(str, args)], capture_output=True)
+    if result.returncode:
+        raise RuntimeError(f'ADB {args[0]} failed: {result.stderr.decode(errors="replace")}')
+    return result.stdout
 
 try:
-    adb('logcat', '-c')
+    # Clearing logs is diagnostic housekeeping, not an installation precondition.
+    subprocess.run(['adb', 'shell', 'logcat', '-b', 'main', '-b', 'system', '-b', 'crash', '-c'], check=False, capture_output=True)
     result = adb('install', '-r', 'artifacts/release/StarWave-android.apk').decode()
     assert 'Success' in result, 'Signed APK installation did not succeed'
     adb('shell', 'am', 'start', '-W', '-n', package + '/.MainActivity')
