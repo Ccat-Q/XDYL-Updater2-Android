@@ -102,6 +102,7 @@ class ApiClient(
         val value = if (data.isBlank()) obj() else runCatching { wireJson.parseToJsonElement(data) }.getOrElse {
             throw ApiException(status, if (status in 200..299) "服务器返回了无效 JSON" else "服务器错误（$status）")
         }
+        if (value !is JsonObject && value !is JsonArray) throw ApiException(status, if (status in 200..299) "服务器返回了无效 JSON" else "服务器错误（$status）")
         if (status !in 200..299) throw ApiException(status, value.str("message", "detail", "error") ?: "服务器错误（$status）")
         return value
     }
