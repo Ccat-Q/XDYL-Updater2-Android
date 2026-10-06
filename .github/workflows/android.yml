@@ -110,6 +110,15 @@ jobs:
             ${{ runner.temp }}/android-sdk/emulator
             ${{ runner.temp }}/android-sdk/system-images/android-${{ matrix.api }}
           key: emulator-${{ runner.os }}-api${{ matrix.api }}-google-apis-x86_64-v1
+      - name: Prepare cached emulator packages
+        run: sdkmanager "emulator" "system-images;android-${{ matrix.api }};google_apis;x86_64"
+      - uses: actions/cache/save@v4
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && steps.emulator-cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ${{ runner.temp }}/android-sdk/emulator
+            ${{ runner.temp }}/android-sdk/system-images/android-${{ matrix.api }}
+          key: emulator-${{ runner.os }}-api${{ matrix.api }}-google-apis-x86_64-v1
       - uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
@@ -118,13 +127,6 @@ jobs:
           disable-animations: true
           emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect -camera-back none -camera-front none
           script: python3 tools/run_device_checks.py
-      - uses: actions/cache/save@v4
-        if: success() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && steps.emulator-cache.outputs.cache-hit != 'true'
-        with:
-          path: |
-            ${{ runner.temp }}/android-sdk/emulator
-            ${{ runner.temp }}/android-sdk/system-images/android-${{ matrix.api }}
-          key: emulator-${{ runner.os }}-api${{ matrix.api }}-google-apis-x86_64-v1
       - uses: actions/upload-artifact@v4
         if: always()
         with:

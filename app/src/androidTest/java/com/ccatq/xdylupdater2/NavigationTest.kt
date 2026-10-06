@@ -92,7 +92,7 @@ class NavigationTest {
         val version = compose.onNode(hasText("版本 ${BuildConfig.VERSION_NAME}") and hasClickAction())
         version.performScrollTo(); repeat(7) { version.performClick() }
         compose.waitUntil(10_000) { model.settings.value.developer }
-        compose.onNodeWithText("开发者功能已启用").assertIsDisplayed()
+        compose.onNodeWithText("开发者功能已启用").performScrollTo().assertIsDisplayed()
         compose.onNode(hasText("设置") and hasClickAction()).performScrollTo().performClick()
         compose.onNodeWithText("开发者工具").performScrollTo().assertIsDisplayed()
     }
