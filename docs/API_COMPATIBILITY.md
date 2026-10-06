@@ -1,15 +1,15 @@
-# API compatibility
+# Android API 兼容说明
 
 本清单来自拥有授权的 `ModUpdater2.exe` 内嵌 .NET 程序集，仅记录兼容重写所需的公开字符串、类型和路由，不提交反编译源码。
 
 ## 服务地址
 
-| 用途 | 地址 | iOS 策略 |
+| 用途 | 地址 | Android 策略 |
 | --- | --- | --- |
 | 主 API | `https://login.lanternwaves.fun` | 已于 2026-09-05 以匿名只读请求核验；旧 `api.lanternwaves.fun:8080` 对所有应用路由返回 404 |
 | 模组清单 | `http://api.lanternwaves.fun:5551/mods` | 匿名读取与后台下载 |
 | 登录网页/资源 | `https://login.lanternwaves.fun` | 强制 HTTPS |
-| IPA 更新 | GitHub Releases | 强制 HTTPS |
+| APK 更新 | 本 Android 仓库 GitHub Releases | 强制 HTTPS |
 
 ## 已映射功能
 
@@ -28,10 +28,10 @@
 - 资料与排行榜中的 `avatar` 可以是文件名；客户端将其解析为 `https://login.lanternwaves.fun/user/avatar/{filename}`。
 - 公告/纪念内容的 `image` 为完整图片地址；帖子与回复的 `content` 可以包含 Markdown 图片 `![说明](URL)`。客户端应同时渲染两者。
 - 排行榜使用 `rank`、`coins` 或 `seconds`；客户端用专用榜单模型显示 `nickname`（喵币榜）或 `player_name`（在线榜），按服务端 `rank` 排序，并分别显示喵币数和格式化时长。账户余额与服务端排行榜统计值由后端分别维护，客户端不以其中一方覆盖另一方。
-- 称号目录包含 `presets`、`custom`、`price_per_char`、`max_len`；自定义称号通过 `POST /titles/buy` 和字段 `title` 提交，必须在客户端二次确认后发出。Windows 版使用 `&#RRGGBB` 作为颜色标记；iOS 显示单价、可见长度、预估扣费和实时预览，但服务端仍是最终的校验与扣费来源。
-- 论坛发帖/回复支持通过 `POST /upload/image` 上传图片。iOS 将返回的 `url`、`image_url` 或相对 `path` 插入正文为 Markdown 图片，随后随 `content` 一并提交。
+- 称号目录包含 `presets`、`custom`、`price_per_char`、`max_len`；自定义称号通过 `POST /titles/buy` 和字段 `title` 提交，必须在客户端二次确认后发出。Windows 版使用 `&#RRGGBB` 作为颜色标记；Android 显示单价、可见长度、预估扣费和实时预览，但服务端仍是最终的校验与扣费来源。
+- 论坛发帖/回复支持通过 `POST /upload/image` 上传图片。Android 将返回的 `url`、`image_url` 或相对 `path` 插入正文为 Markdown 图片，随后随 `content` 一并提交。
 - 点赞使用 `POST /forum/post/{id}/like`；无令牌时服务返回 401（已核验），说明该路由有效。客户端在成功后重新加载帖子并展示 `likes` 计数。
-- 资源下载使用公开的 `:5551/mods/mods.json` 中的 `data.files`；不使用只含分组信息的 `/mods/list` 作为下载目标。每个文件的 `name`、`url`、`sha256`、`size` 和 `kind` 直接对应下载记录与资源展示。下载完成时使用 Documents 内的分块暂存与原子移动，避免后台传输临时文件触发 Cocoa “Cannot create file”。
+- 资源下载使用公开的 `:5551/mods/mods.json` 中的 `data.files`；不使用只含分组信息的 `/mods/list` 作为下载目标。每个文件的 `name`、`url`、`sha256`、`size` 和 `kind` 直接对应下载记录与资源展示。下载完成时使用 应用专属下载目录内的分块暂存与原子移动，只允许校验完成的文件分享或导出。
 - 打赏使用 `POST /forum/post/{id}/tip`；客户端要求输入正整数 `amount`，在服务端成功确认后刷新账户余额。
 - `POST /notifications/read` 为批量已读端点；服务端成功响应后客户端立即清除本地未读徽标，再由后续刷新取得服务器的新计数。
 - 决斗场使用认证的 `/pvp/me`、`/pvp/online`、`/pvp/incoming`、`/pvp/accounts`、`/pvp/match/status` 与 `/pvp/rank?limit=50`。写入端点分别为：`POST /pvp/challenge` `{target}`、`POST /pvp/challenge/respond` `{id, action}`、`POST /pvp/match/join` `{account, time_pref}`、`POST /pvp/match/confirm` `{action:"accept"}` 和空对象 `POST /pvp/match/leave`。匹配状态以 `idle/searching/found/starts/expired/declined` 为准，客户端不会伪造游戏内结算。
@@ -46,4 +46,15 @@
 - 连续点按设置中的版本号 7 次可在本机启用开发者功能；该入口包含接口目录、任意路径请求控制台、环境收藏、完整会话、性能追踪与本地数据清理。
 - 接口目录维护客户端当前已知的认证、用户、社区、游戏、商城、内容、更新和资源路由；GET 可直接一键请求，写路由仍必须确认，且可转入控制台补充 JSON、文件和 `{id}` 等动态字段。
 - 业务 `APIClient` 继续严格限制官方服务；独立的开发者执行器才允许自定义 HTTP/HTTPS 地址。自定义地址的令牌开关默认关闭且不保存，打开时会明确显示目标域名。
-- POST/PUT/DELETE 必须逐次确认，DELETE 还要求输入 `DELETE`。完整响应最多保留最近 20 条，使用 iOS 完整文件保护保存；导出默认脱敏令牌、密码和 Cookie，原文导出必须再次确认。
+- POST/PUT/DELETE 必须逐次确认，DELETE 还要求输入 `DELETE`。完整响应最多保留最近 20 条，使用 Android Keystore 管理密钥并加密保存；导出默认脱敏令牌、密码和 Cookie，原文导出必须再次确认。
+
+## Android 迁移约定
+
+- 普通 JSON 和 multipart 请求统一进行认证；并发 401 合并刷新，最多重试一次。明确拒绝刷新时清除会话，暂时网络失败不注销。普通业务令牌只发送到官方 HTTPS 身份服务的标准端口；重定向验证后仍拒绝自动重放。
+- QQ 登录仍使用 session_id 与外部授权网页。取消页面会取消授权启动请求；后台停止轮询，返回前台后继续，90 秒后超时。
+- Android 更新使用 Ccat-Q/XDYL-Updater2-Android 的最新正式 Release，比较 tag_name 的数字版本。APK 链接交由浏览器处理，不请求安装权限。
+- 游戏资源更新与应用更新是不同功能；不运行 EXE，不访问 Minecraft 目录，不新增后端接口。
+- 原参考 EXE 不再位于工作目录，可通过仓库初始提交查阅；本文保留的是业务协议，不提交反编译源码。
+- 普通网络日志不保留正文或认证头，查询参数中的会话、验证码与令牌脱敏。完整开发者会话独立加密保存，按字段/请求头/URL 脱敏导出；不能可靠解析的非 JSON 正文默认省略。
+- 正式 APK 保留任意 HTTP 开发者执行器，这是明确的工程取舍，见 ADR 0002。其令牌开关默认关闭、不持久化，写请求逐次确认。
+- 本轮构建和测试只通过 GitHub Actions 执行。真实接口验证限匿名只读请求，真实购买、打赏、匹配等写操作未作自动联调。

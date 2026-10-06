@@ -1,0 +1,4 @@
+<network-security-config>
+    <!-- User-approved arbitrary HTTP developer executor. Business clients enforce origin and redirect allowlists. -->
+    <base-config cleartextTrafficPermitted="true"><trust-anchors><certificates src="system" /></trust-anchors></base-config>
+</network-security-config>

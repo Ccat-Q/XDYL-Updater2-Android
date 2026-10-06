@@ -1,0 +1,185 @@
+name: Android
+'on':
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      signed:
+        description: Build a signed release APK using configured repository Secrets
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+jobs:
+  build:
+    name: Unit tests, lint and debug APKs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/android-tools
+        with:
+          save-sdk: ${{ github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+          cache-read-only: ${{ github.ref != 'refs/heads/main' || github.event_name == 'pull_request' }}
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install configuration parser
+        run: python3 -m pip install PyYAML==6.0.2
+      - name: Static project checks
+        run: python3 tools/check_project.py
+      - name: Anonymous read-only endpoint diagnostics
+        run: python3 tools/probe_readonly.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Android-read-only-diagnostics
+          path: artifacts/read-only-endpoints.json
+          retention-days: 14
+      - name: Generate repository Gradle Wrapper artifact
+        run: |
+          mkdir -p "$RUNNER_TEMP/wrapper-project"
+          touch "$RUNNER_TEMP/wrapper-project/settings.gradle.kts"
+          gradle -p "$RUNNER_TEMP/wrapper-project" wrapper --gradle-version 9.1.0 --distribution-type bin
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Gradle-wrapper-9.1.0
+          path: |
+            ${{ runner.temp }}/wrapper-project/gradlew
+            ${{ runner.temp }}/wrapper-project/gradlew.bat
+            ${{ runner.temp }}/wrapper-project/gradle/wrapper/
+      - name: Build and test
+        run: gradle :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-configuration-cache --stacktrace
+      - name: Preserve APKs and build upgrade probe
+        run: |
+          mkdir -p artifacts/debug
+          cp app/build/outputs/apk/debug/app-debug.apk artifacts/debug/
+          cp app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk artifacts/debug/
+          gradle :app:assembleDebug -PstarwaveVersionCode=2 --no-configuration-cache --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk artifacts/debug/app-debug-upgrade.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StarWave-debug
+          path: artifacts/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Android-build-reports
+          path: |
+            app/build/reports/
+            app/build/test-results/
+            app/schemas/
+          retention-days: 14
+
+  device-tests:
+    name: Android API ${{ matrix.api }} navigation and upgrade
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 36]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/android-tools
+        with:
+          gradle: 'false'
+      - uses: actions/download-artifact@v4
+        with:
+          name: StarWave-debug
+          path: artifacts/input
+      - name: Enable runner KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: actions/cache/restore@v4
+        id: emulator-cache
+        with:
+          path: |
+            ${{ runner.temp }}/android-sdk/emulator
+            ${{ runner.temp }}/android-sdk/system-images/android-${{ matrix.api }}
+          key: emulator-${{ runner.os }}-api${{ matrix.api }}-google-apis-x86_64-v1
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-window -no-snapshot -noaudio -no-boot-anim -gpu swiftshader_indirect -camera-back none -camera-front none
+          script: python3 tools/run_device_checks.py
+      - uses: actions/cache/save@v4
+        if: success() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && steps.emulator-cache.outputs.cache-hit != 'true'
+        with:
+          path: |
+            ${{ runner.temp }}/android-sdk/emulator
+            ${{ runner.temp }}/android-sdk/system-images/android-${{ matrix.api }}
+          key: emulator-${{ runner.os }}-api${{ matrix.api }}-google-apis-x86_64-v1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Android-device-api${{ matrix.api }}
+          path: artifacts/device/
+          retention-days: 14
+
+  signed-apk:
+    name: Signed APK and optional tag Release
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.signed)
+    needs: [build, device-tests]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: ./.github/actions/android-tools
+      - name: Restore signing identity privately
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: python3 tools/prepare_ci_signing.py
+      - name: Build signed release without caching signing outputs
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/starwave-release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          python3 tools/check_release_tag.py
+          gradle :app:assembleRelease --no-build-cache --no-configuration-cache --stacktrace
+          mkdir -p artifacts/release
+          cp app/build/outputs/apk/release/app-release.apk artifacts/release/StarWave-android.apk
+          "$ANDROID_HOME/build-tools/36.0.0/apksigner" verify --verbose --print-certs artifacts/release/StarWave-android.apk
+          cd artifacts/release
+          sha256sum StarWave-android.apk > StarWave-android.apk.sha256
+      - name: Delete runner signing material
+        if: always()
+        run: rm -f "$RUNNER_TEMP/starwave-release.keystore"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: StarWave-signed
+          path: artifacts/release/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish tag Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" artifacts/release/StarWave-android.apk artifacts/release/StarWave-android.apk.sha256 --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" artifacts/release/StarWave-android.apk artifacts/release/StarWave-android.apk.sha256 --generate-notes
+          fi

@@ -1,0 +1,45 @@
+name: Android CI tools and caches
+description: Install tools only on GitHub runners, with separate SDK and Gradle caches
+inputs:
+  gradle:
+    description: Whether this job needs Gradle
+    default: 'true'
+  save-sdk:
+    description: Allow the trusted main-branch build job to populate the SDK cache
+    default: 'false'
+  cache-read-only:
+    description: Restore Gradle caches without saving them
+    default: 'true'
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: '17'
+    - name: Set isolated SDK location
+      shell: bash
+      run: |
+        mkdir -p "$RUNNER_TEMP/android-sdk"
+        echo "ANDROID_HOME=$RUNNER_TEMP/android-sdk" >> "$GITHUB_ENV"
+        echo "ANDROID_SDK_ROOT=$RUNNER_TEMP/android-sdk" >> "$GITHUB_ENV"
+    - uses: actions/cache/restore@v4
+      id: sdk
+      with:
+        path: ${{ runner.temp }}/android-sdk
+        key: sdk-${{ runner.os }}-cmd13114758-api36-build36.0.0-v1
+    - uses: android-actions/setup-android@v3
+      with:
+        cmdline-tools-version: '13114758'
+        packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
+    - uses: actions/cache/save@v4
+      if: inputs.save-sdk == 'true' && steps.sdk.outputs.cache-hit != 'true'
+      with:
+        path: ${{ runner.temp }}/android-sdk
+        key: sdk-${{ runner.os }}-cmd13114758-api36-build36.0.0-v1
+    - uses: gradle/actions/setup-gradle@v5
+      if: inputs.gradle == 'true'
+      with:
+        gradle-version: '9.1.0'
+        cache-read-only: ${{ inputs.cache-read-only }}
+        cache-cleanup: on-success
